@@ -1,6 +1,4 @@
-#include <ios>
 #include <iostream>
-#include <ostream>
 #include <string>
 
 namespace tarasenko
@@ -35,6 +33,24 @@ namespace tarasenko
   struct str
   {
     std::string& s;
+  };
+
+  enum class Key
+  {
+    key1 = 0,
+    key2 = 1,
+    key3 = 2
+  };
+
+  struct keyIO
+  {
+    Key& key;
+  };
+
+  struct field
+  {
+    DataStruct& data;
+    bool* used;
   };
 
   class IOguard
@@ -128,6 +144,72 @@ namespace tarasenko
     return in >> del{expected.s};
   }
 
+  std::istream& operator>>(std::istream& in, keyIO&& dest)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    std::string key;
+    in >> key;
+    if (key == "key1")
+    {
+      dest.key = Key::key1;
+    }
+    else if (key == "key2")
+    {
+      dest.key = Key::key2;
+    }
+    else if (key == "key3")
+    {
+      dest.key = Key::key3;
+    }
+    else
+    {
+      in.setstate(std::ios_base::failbit);
+    }
+    return in;
+  }
+
+  std::istream& operator>>(std::istream& in, field&& dest)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    Key key;
+    in >> keyIO{key};
+    if (!in)
+    {
+      return in;
+    }
+    const int index = static_cast< int >(key);
+    if (dest.used[index])
+    {
+      in.setstate(std::ios_base::failbit);
+      return in;
+    }
+    switch (key)
+    {
+    case Key::key1:
+      in >> ll{dest.data.key1};
+      break;
+    case Key::key2:
+      in >> symb{dest.data.key2};
+      break;
+    case Key::key3:
+      in >> str{dest.data.key3};
+      break;
+    }
+    if (in)
+    {
+      dest.used[index] = true;
+    }
+    return in;
+  }
+
   std::istream& operator>>(std::istream& in, DataStruct& data)
   {
     std::istream::sentry s(in);
@@ -135,15 +217,18 @@ namespace tarasenko
     {
       return in;
     }
-    IOguard guard(in);
-    DataStruct input;
+    DataStruct input{};
     {
-      in >> std::skipws;
+      bool used[3] = {};
       in >> del{"(:"};
-      in >> label{"key1 "} >> ll{input.key1} >> del{":"};
-      in >> label{"key2 "} >> symb{input.key2} >> del{":"};
-      in >> label{"key3 "} >> str{input.key3};
-      in >> del{":)"};
+      in >> field{input, used} >> del{":"};
+      in >> field{input, used} >> del{":"};
+      in >> field{input, used} >> del{":"};
+      in >> del{")"};
+      if (!used[0] || !used[1] || !used[2])
+      {
+        in.setstate(std::ios_base::failbit);
+      }
     }
     if (in)
     {
