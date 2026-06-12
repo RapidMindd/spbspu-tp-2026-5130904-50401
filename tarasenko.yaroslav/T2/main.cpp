@@ -25,6 +25,11 @@ namespace tarasenko
     long long& num;
   };
 
+  struct llLit
+  {};
+
+  std::istream& operator>>(std::istream& in, llLit&&);
+
   struct symb
   {
     char& c;
@@ -131,7 +136,23 @@ namespace tarasenko
     {
       return in;
     }
-    return in >> dest.num >> del{"ll"};
+    return in >> dest.num >> llLit{};
+  }
+
+  std::istream& operator>>(std::istream& in, llLit&&)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    std::string suffix(2, '\0');
+    in.read(&suffix[0], 2);
+    if (in && suffix != "ll" && suffix != "LL")
+    {
+      in.setstate(std::ios_base::failbit);
+    }
+    return in;
   }
 
   std::istream& operator>>(std::istream& in, label&& expected)
