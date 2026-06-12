@@ -1,3 +1,4 @@
+#include <ios>
 #include <iostream>
 #include <ostream>
 #include <string>
@@ -9,6 +10,31 @@ namespace tarasenko
     long long key1;
     char key2;
     std::string key3;
+  };
+
+  struct del
+  {
+    std::string s;
+  };
+
+  struct label
+  {
+    std::string s;
+  };
+
+  struct ll
+  {
+    long long& num;
+  };
+
+  struct symb
+  {
+    char& c;
+  };
+
+  struct str
+  {
+    std::string& s;
   };
 
   class IOguard
@@ -33,7 +59,7 @@ namespace tarasenko
     }
     IOguard guard(out);
     out << "(:";
-    out << "key1 " << data.key1 << "LL";
+    out << "key1 " << data.key1 << "ll";
     out << ':';
     out << "key2 " << '\'' << data.key2 << '\'';
     out << ':';
@@ -41,14 +67,96 @@ namespace tarasenko
     out << ":)";
     return out;
   }
+
+  std::istream& operator>>(std::istream& in, del&& expected)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    for (size_t i = 0; i < expected.s.size(); ++i)
+    {
+      char c = 0;
+      in.get(c);
+      if (!in || c != expected.s[i])
+      {
+        in.setstate(std::ios_base::failbit);
+        break;
+      }
+    }
+    return in;
+  }
+
+  std::istream& operator>>(std::istream& in, str&& dest)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    return std::getline(in >> del{"\""}, dest.s, '\"');
+  }
+
+  std::istream& operator>>(std::istream& in, symb&& dest)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    return in >> del{"\'"} >> dest.c >> del{"\'"};
+  }
+
+  std::istream& operator>>(std::istream& in, ll&& dest)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    return in >> dest.num >> del{"ll"};
+  }
+
+  std::istream& operator>>(std::istream& in, label&& expected)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    return in >> del{expected.s};
+  }
+
+  std::istream& operator>>(std::istream& in, DataStruct& data)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    IOguard guard(in);
+    DataStruct input;
+    {
+      in >> std::skipws;
+      in >> del{"(:"};
+      in >> label{"key1 "} >> ll{input.key1} >> del{":"};
+      in >> label{"key2 "} >> symb{input.key2} >> del{":"};
+      in >> label{"key3 "} >> str{input.key3};
+      in >> del{":)"};
+    }
+    if (in)
+    {
+      data = input;
+    }
+    return in;
+  }
 }
 
 int main()
 {
   tarasenko::DataStruct data;
-  data.key1 = 1;
-  data.key2 = 'a';
-  data.key3 = "Hello";
+  std::cin >> data;
   std::cout << data << '\n';
 }
 
