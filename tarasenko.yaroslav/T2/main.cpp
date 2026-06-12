@@ -1,5 +1,10 @@
 #include <iostream>
 #include <string>
+#include <algorithm>
+#include <vector>
+#include <iterator>
+#include <sstream>
+#include <functional>
 
 namespace tarasenko
 {
@@ -22,6 +27,11 @@ namespace tarasenko
     }
     return lhs.key3.size() < rhs.key3.size();
   }
+
+  struct Line
+  {
+    std::string str;
+  };
 
   struct del
   {
@@ -68,7 +78,7 @@ namespace tarasenko
   struct field
   {
     DataStruct& data;
-    bool* used;
+    bool (&used)[3];
   };
 
   class IOguard
@@ -109,15 +119,14 @@ namespace tarasenko
     {
       return in;
     }
-    for (size_t i = 0; i < expected.s.size(); ++i)
+    std::string input(expected.s.size(), '\0');
+    if (!input.empty())
     {
-      char c = 0;
-      in.get(c);
-      if (!in || c != expected.s[i])
-      {
-        in.setstate(std::ios_base::failbit);
-        break;
-      }
+      in.read(&input[0], input.size());
+    }
+    if (in && input != expected.s)
+    {
+      in.setstate(std::ios_base::failbit);
     }
     return in;
   }
@@ -270,13 +279,43 @@ namespace tarasenko
     }
     return in;
   }
+
+  std::istream& operator>>(std::istream& in, Line& line)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    std::getline(in, line.str);
+    return in;
+  }
+
+  void checkLine(const Line& line, std::vector< DataStruct >& data)
+  {
+    DataStruct item{};
+    std::istringstream input(line.str);
+    if (input >> item && input >> std::ws && input.eof())
+    {
+      data.push_back(item);
+    }
+  }
 }
 
 int main()
 {
-  tarasenko::DataStruct data;
-  std::cin >> data;
-  std::cout << data << '\n';
+  using tarasenko::DataStruct;
+  using tarasenko::Line;
+  std::vector< DataStruct > data;
+  std::vector< Line > lines;
+
+  using iit = std::istream_iterator< Line >;
+  std::copy(iit(std::cin), iit{}, std::back_inserter(lines));
+  using namespace std::placeholders;
+  std::for_each(lines.begin(), lines.end(), std::bind(tarasenko::checkLine, _1, std::ref(data)));
+  std::sort(data.begin(), data.end());
+  using oit = std::ostream_iterator< DataStruct >;
+  std::copy(data.begin(), data.end(), oit(std::cout, "\n"));
 }
 
 tarasenko::IOguard::IOguard(std::basic_ios< char >& s):
