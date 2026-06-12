@@ -1,0 +1,335 @@
+#include <iostream>
+#include <string>
+#include <algorithm>
+#include <vector>
+#include <iterator>
+#include <sstream>
+#include <functional>
+
+namespace tarasenko
+{
+  struct DataStruct
+  {
+    long long key1;
+    char key2;
+    std::string key3;
+  };
+
+  bool operator<(const DataStruct& lhs, const DataStruct& rhs)
+  {
+    if (lhs.key1 != rhs.key1)
+    {
+      return lhs.key1 < rhs.key1;
+    }
+    if (lhs.key2 != rhs.key2)
+    {
+      return lhs.key2 < rhs.key2;
+    }
+    return lhs.key3.size() < rhs.key3.size();
+  }
+
+  struct Line
+  {
+    std::string str;
+  };
+
+  struct del
+  {
+    std::string s;
+  };
+
+  struct label
+  {
+    std::string s;
+  };
+
+  struct ll
+  {
+    long long& num;
+  };
+
+  struct llLit
+  {};
+
+  std::istream& operator>>(std::istream& in, llLit&&);
+
+  struct symb
+  {
+    char& c;
+  };
+
+  struct str
+  {
+    std::string& s;
+  };
+
+  enum class Key
+  {
+    key1 = 0,
+    key2 = 1,
+    key3 = 2
+  };
+
+  struct keyIO
+  {
+    Key& key;
+  };
+
+  struct field
+  {
+    DataStruct& data;
+    bool (&used)[3];
+  };
+
+  class IOguard
+  {
+  public:
+    explicit IOguard(std::basic_ios< char >& s);
+    ~IOguard();
+  private:
+    std::basic_ios< char >& s_;
+    std::streamsize width_;
+    char fill_;
+    std::streamsize precision_;
+    std::basic_ios< char >::fmtflags fmt_;
+  };
+
+  std::ostream& operator<<(std::ostream& out, const DataStruct& data)
+  {
+    std::ostream::sentry s(out);
+    if (!s)
+    {
+      return out;
+    }
+    IOguard guard(out);
+    out << "(:";
+    out << "key1 " << data.key1 << "ll";
+    out << ':';
+    out << "key2 " << '\'' << data.key2 << '\'';
+    out << ':';
+    out << "key3 " << '\"' << data.key3 << '\"';
+    out << ":)";
+    return out;
+  }
+
+  std::istream& operator>>(std::istream& in, del&& expected)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    std::string input(expected.s.size(), '\0');
+    if (!input.empty())
+    {
+      in.read(&input[0], input.size());
+    }
+    if (in && input != expected.s)
+    {
+      in.setstate(std::ios_base::failbit);
+    }
+    return in;
+  }
+
+  std::istream& operator>>(std::istream& in, str&& dest)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    return std::getline(in >> del{"\""}, dest.s, '\"');
+  }
+
+  std::istream& operator>>(std::istream& in, symb&& dest)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    return in >> del{"\'"} >> dest.c >> del{"\'"};
+  }
+
+  std::istream& operator>>(std::istream& in, ll&& dest)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    return in >> dest.num >> llLit{};
+  }
+
+  std::istream& operator>>(std::istream& in, llLit&&)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    std::string suffix(2, '\0');
+    in.read(&suffix[0], 2);
+    if (in && suffix != "ll" && suffix != "LL")
+    {
+      in.setstate(std::ios_base::failbit);
+    }
+    return in;
+  }
+
+  std::istream& operator>>(std::istream& in, label&& expected)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    return in >> del{expected.s};
+  }
+
+  std::istream& operator>>(std::istream& in, keyIO&& dest)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    std::string key;
+    in >> key;
+    if (key == "key1")
+    {
+      dest.key = Key::key1;
+    }
+    else if (key == "key2")
+    {
+      dest.key = Key::key2;
+    }
+    else if (key == "key3")
+    {
+      dest.key = Key::key3;
+    }
+    else
+    {
+      in.setstate(std::ios_base::failbit);
+    }
+    return in;
+  }
+
+  std::istream& operator>>(std::istream& in, field&& dest)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    Key key;
+    in >> keyIO{key};
+    if (!in)
+    {
+      return in;
+    }
+    const int index = static_cast< int >(key);
+    if (dest.used[index])
+    {
+      in.setstate(std::ios_base::failbit);
+      return in;
+    }
+    switch (key)
+    {
+    case Key::key1:
+      in >> ll{dest.data.key1};
+      break;
+    case Key::key2:
+      in >> symb{dest.data.key2};
+      break;
+    case Key::key3:
+      in >> str{dest.data.key3};
+      break;
+    }
+    if (in)
+    {
+      dest.used[index] = true;
+    }
+    return in;
+  }
+
+  std::istream& operator>>(std::istream& in, DataStruct& data)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    DataStruct input{};
+    {
+      bool used[3] = {};
+      in >> del{"(:"};
+      in >> field{input, used} >> del{":"};
+      in >> field{input, used} >> del{":"};
+      in >> field{input, used} >> del{":"};
+      in >> del{")"};
+      if (!used[0] || !used[1] || !used[2])
+      {
+        in.setstate(std::ios_base::failbit);
+      }
+    }
+    if (in)
+    {
+      data = input;
+    }
+    return in;
+  }
+
+  std::istream& operator>>(std::istream& in, Line& line)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    std::getline(in, line.str);
+    return in;
+  }
+
+  void checkLine(const Line& line, std::vector< DataStruct >& data)
+  {
+    DataStruct item{};
+    std::istringstream input(line.str);
+    if (input >> item && input >> std::ws && input.eof())
+    {
+      data.push_back(item);
+    }
+  }
+}
+
+int main()
+{
+  using tarasenko::DataStruct;
+  using tarasenko::Line;
+  std::vector< DataStruct > data;
+  std::vector< Line > lines;
+
+  using iit = std::istream_iterator< Line >;
+  std::copy(iit(std::cin), iit{}, std::back_inserter(lines));
+  using namespace std::placeholders;
+  std::for_each(lines.begin(), lines.end(), std::bind(tarasenko::checkLine, _1, std::ref(data)));
+  std::sort(data.begin(), data.end());
+  using oit = std::ostream_iterator< DataStruct >;
+  std::copy(data.begin(), data.end(), oit(std::cout, "\n"));
+}
+
+tarasenko::IOguard::IOguard(std::basic_ios< char >& s):
+  s_(s),
+  width_(s.width()),
+  fill_(s.fill()),
+  precision_(s.precision()),
+  fmt_(s.flags())
+{}
+
+tarasenko::IOguard::~IOguard()
+{
+  s_.width(width_);
+  s_.fill(fill_);
+  s_.precision(precision_);
+  s_.flags(fmt_);
+}
