@@ -11,6 +11,7 @@
 #include <numeric>
 #include <limits>
 #include <iomanip>
+#include <sstream>
 
 namespace tarasenko
 {
@@ -165,9 +166,18 @@ namespace tarasenko
     return std::accumulate(areas.begin(), areas.end(), 0.0);
   }
 
-  double getAreaIfSuits(const Polygon& polygon, int remainder)
+  double getAreaIfRightParity(const Polygon& polygon, int remainder)
   {
     if (polygon.points.size() % 2 == remainder)
+    {
+      return getPolygonArea(polygon);
+    }
+    return 0.0;
+  }
+
+  double getAreaIfRightCount(const Polygon& polygon, size_t count)
+  {
+    if (polygon.points.size() == count)
     {
       return getPolygonArea(polygon);
     }
@@ -178,30 +188,50 @@ namespace tarasenko
   {
     IOguard guard(out);
     out << std::fixed << std::setprecision(1);
-    std::string subcommand;
-    in >> subcommand;
+    std::string argument;
+    in >> argument;
     int remainder = 0;
-    if (subcommand == "MEAN")
+    if (argument == "MEAN")
     {
+      if (polygons.size() == 0)
+      {
+        throw std::logic_error("Not enough polygons");
+      }
       std::vector< double > areas;
       std::transform(polygons.begin(), polygons.end(), std::back_inserter(areas), getPolygonArea);
       out << std::accumulate(areas.begin(), areas.end(), 0.0) / polygons.size() << '\n';
       return;
     }
-    else if (subcommand == "EVEN")
+    else if (argument == "EVEN")
     {
       remainder = 0;
     }
-    else if (subcommand == "ODD")
+    else if (argument == "ODD")
     {
       remainder = 1;
     }
     else
     {
-      throw std::invalid_argument("Unknown subcommand");
+      std::istringstream stream(argument);
+      size_t vertexes = 0;
+      if (stream >> vertexes && stream.eof() && vertexes > 2)
+      {
+        std::vector< double > areas;
+        using namespace std::placeholders;
+        std::transform(polygons.begin(), polygons.end(),
+          std::back_inserter(areas), std::bind(getAreaIfRightCount, _1, vertexes));
+        out << std::accumulate(areas.begin(), areas.end(), 0.0) << '\n';
+        return;
+      }
+      else
+      {
+        throw std::invalid_argument("Unknown argument");
+      }
     }
     std::vector< double > areas;
-    std::transform(polygons.begin(), polygons.end(), std::back_inserter(areas), std::bind(getAreaIfSuits, std::placeholders::_1, remainder));
+    using namespace std::placeholders;
+    std::transform(polygons.begin(), polygons.end(),
+      std::back_inserter(areas), std::bind(getAreaIfRightParity, _1, remainder));
     out << std::accumulate(areas.begin(), areas.end(), 0.0) << '\n';
   }
 }
