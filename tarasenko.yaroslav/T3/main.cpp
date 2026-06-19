@@ -51,7 +51,18 @@ namespace tarasenko
     char c;
   };
 
-  struct Line
+  struct vertexCount
+  {
+    size_t& count;
+  };
+
+  struct pointsIO
+  {
+    std::vector< Point >& points;
+    size_t count;
+  };
+
+  struct lineIO
   {
     std::string data;
   };
@@ -82,11 +93,37 @@ namespace tarasenko
     return in >> del{'('} >> point.x >> del{';'} >> point.y >> del{')'};
   }
 
+  std::istream& operator>>(std::istream& in, vertexCount&& dest)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    in >> dest.count;
+    if (dest.count < 3)
+    {
+      in.setstate(std::ios::failbit);
+    }
+    return in;
+  }
+
   Point readPoint(std::istream& in)
   {
     Point point;
     in >> point;
     return point;
+  }
+
+  std::istream& operator>>(std::istream& in, pointsIO&& dest)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    std::generate_n(std::back_inserter(dest.points), dest.count, std::bind(readPoint, std::ref(in)));
+    return in;
   }
 
   std::istream& operator>>(std::istream& in, Polygon& polygon)
@@ -96,15 +133,9 @@ namespace tarasenko
     {
       return in;
     }
-    int count = 0;
-    in >> count;
-    if (count < 3)
-    {
-      in.setstate(std::ios::failbit);
-      return in;
-    }
+    size_t count = 0;
     std::vector< Point > points;
-    std::generate_n(std::back_inserter(points), count, std::bind(readPoint, std::ref(in)));
+    in >> vertexCount{count} >> pointsIO{points, count};
     if (in)
     {
       polygon.points = points;
@@ -422,11 +453,6 @@ namespace tarasenko
     return std::any_of(edges.begin(), edges.end(), std::bind(areSegmentsIntersected, edge, _1));
   }
 
-  bool isPointOnPolygonEdge(const Point& point, const Polygon& polygon, size_t index)
-  {
-    return isPointOnSegment(point, getPolygonEdge(polygon, index));
-  }
-
   bool isRayCrossingSegment(const Point& point, const Segment& edge)
   {
     bool is_y_between = (edge.a.y > point.y) != (edge.b.y > point.y);
@@ -438,22 +464,18 @@ namespace tarasenko
     return x > point.x;
   }
 
-  bool isRayCrossingPolygonEdge(const Point& point, const Polygon& polygon, size_t index)
-  {
-    return isRayCrossingSegment(point, getPolygonEdge(polygon, index));
-  }
-
   bool isPointInPolygon(const Point& point, const Polygon& polygon)
   {
     std::vector< size_t > indexes(polygon.points.size());
     std::iota(indexes.begin(), indexes.end(), 0);
     using namespace std::placeholders;
-    if (std::any_of(indexes.begin(), indexes.end(), std::bind(isPointOnPolygonEdge, point, std::cref(polygon), _1)))
+    if (std::any_of(indexes.begin(), indexes.end(),
+      std::bind(isPointOnSegment, point, std::bind(getPolygonEdge, std::cref(polygon), _1))))
     {
       return true;
     }
     size_t crossings = std::count_if(indexes.begin(), indexes.end(),
-      std::bind(isRayCrossingPolygonEdge, point, std::cref(polygon), _1));
+      std::bind(isRayCrossingSegment, point, std::bind(getPolygonEdge, std::cref(polygon), _1)));
     return crossings % 2 == 1;
   }
 
@@ -521,7 +543,7 @@ namespace tarasenko
     out << std::count_if(polygons.begin(), polygons.end(), hasRightAngle) << '\n';
   }
 
-  std::istream& operator>>(std::istream& in, Line& line)
+  std::istream& operator>>(std::istream& in, lineIO& line)
   {
     std::istream::sentry s(in);
     if (!s)
@@ -531,7 +553,7 @@ namespace tarasenko
     return std::getline(in, line.data);
   }
 
-  Polygon getPolygonFromLine(const Line& line)
+  Polygon getPolygonFromLine(const lineIO& line)
   {
     std::istringstream in(line.data);
     Polygon polygon;
@@ -562,9 +584,9 @@ int main(int argc, char** argv)
 
   using namespace tarasenko;
   std::vector< Polygon > polygons;
-  std::vector< Line > lines;
+  std::vector< lineIO > lines;
   std::ifstream in(argv[1]);
-  using iit = std::istream_iterator< Line >;
+  using iit = std::istream_iterator< lineIO >;
   std::copy(iit(in), iit{}, std::back_inserter(lines));
   std::vector< Polygon > input_polygons;
   std::transform(lines.begin(), lines.end(), std::back_inserter(input_polygons), getPolygonFromLine);
@@ -575,14 +597,14 @@ int main(int argc, char** argv)
   std::unordered_map< std::string, cmd_t > cmds;
 
   std::unordered_map< std::string, const_cmd_t > const_cmds;
-  cmds["AREA"] = calculateAreas;
-  cmds["MAX"] = calculateMaximums;
-  cmds["MIN"] = calculateMinimums;
-  cmds["COUNT"] = countPolygons;
-  cmds["INTERSECTIONS"] = countIntersections;
-  cmds["RIGHTSHAPES"] = countRightShapes;
+  const_cmds["AREA"] = calculateAreas;
+  const_cmds["MAX"] = calculateMaximums;
+  const_cmds["MIN"] = calculateMinimums;
+  const_cmds["COUNT"] = countPolygons;
+  const_cmds["INTERSECTIONS"] = countIntersections;
+  const_cmds["RIGHTSHAPES"] = countRightShapes;
 
-  Line line;
+  lineIO line;
   while (std::cin >> line)
   {
     std::istringstream stream(line.data);
