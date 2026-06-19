@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <functional>
 #include <iterator>
+#include <fstream>
 
 namespace tarasenko
 {
@@ -88,25 +89,49 @@ namespace tarasenko
     }
     return in;
   }
+
+  std::ostream& operator<<(std::ostream& out, const Point& point)
+  {
+    std::ostream::sentry s(out);
+    if (!s)
+    {
+      return out;
+    }
+    IOguard guard(out);
+    out << '(' << point.x << ';' << point.y << ')';
+    return out;
+  }
+
+  std::ostream& operator<<(std::ostream& out, const Polygon& polygon)
+  {
+    std::ostream::sentry s(out);
+    if (!s)
+    {
+      return out;
+    }
+    IOguard guard(out);
+    out << polygon.points.size() << ' ';
+    using oit = std::ostream_iterator< Point >;
+    std::copy(polygon.points.begin(), polygon.points.end(), oit(out, " "));
+    return out;
+  }
 }
 
-int main()
+int main(int argc, char** argv)
 {
-  // if (argc != 2)
-  // {
-  //   std::cerr << "1 argument expected\n";
-  //   return 1;
-  // }
-
-  using namespace tarasenko;
-  Polygon polygon;
-  std::cin >> polygon;
-  if (!std::cin)
+  if (argc != 2)
   {
+    std::cerr << "1 argument expected\n";
     return 1;
   }
-  std::cout << polygon.points[0].x << ' ' << polygon.points[0].y << '\n';
-  std::cout << polygon.points[1].x << ' ' << polygon.points[1].y << '\n';
+
+  using namespace tarasenko;
+  std::vector< Polygon > polygons;
+  using iit = std::istream_iterator< Polygon >;
+  std::ifstream in(argv[1]);
+  std::copy(iit(in), iit{}, std::back_inserter(polygons));
+  using oit = std::ostream_iterator< Polygon >;
+  std::copy(polygons.begin(), polygons.end(), oit(std::cout, "\n"));
   return 0;
 }
 
