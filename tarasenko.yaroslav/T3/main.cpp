@@ -340,6 +340,100 @@ namespace tarasenko
       }
     }
   }
+
+  struct Segment
+  {
+    Point a;
+    Point b;
+  };
+
+  long long getOrientedArea(const Point& a, const Point& b, const Point& c)
+  {
+    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  }
+
+  bool isCoordinateBetween(int left, int value, int right)
+  {
+    return std::min(left, right) <= value && value <= std::max(left, right);
+  }
+
+  bool isPointOnSegment(const Point& point, const Segment& segment)
+  {
+    bool ans = getOrientedArea(segment.a, segment.b, point) == 0;
+    ans = ans && isCoordinateBetween(segment.a.x, point.x, segment.b.x);
+    ans = ans && isCoordinateBetween(segment.a.y, point.y, segment.b.y);
+    return ans;
+  }
+
+  bool areSegmentsIntersected(const Segment& lhs, const Segment& rhs)
+  {
+    long long lhs_first_area = getOrientedArea(lhs.a, lhs.b, rhs.a);
+    long long lhs_second_area = getOrientedArea(lhs.a, lhs.b, rhs.b);
+    long long rhs_first_area = getOrientedArea(rhs.a, rhs.b, lhs.a);
+    long long rhs_second_area = getOrientedArea(rhs.a, rhs.b, lhs.b);
+
+    if (lhs_first_area == 0 && isPointOnSegment(rhs.a, lhs))
+    {
+      return true;
+    }
+    if (lhs_second_area == 0 && isPointOnSegment(rhs.b, lhs))
+    {
+      return true;
+    }
+    if (rhs_first_area == 0 && isPointOnSegment(lhs.a, rhs))
+    {
+      return true;
+    }
+    if (rhs_second_area == 0 && isPointOnSegment(lhs.b, rhs))
+    {
+      return true;
+    }
+    return (lhs_first_area > 0) != (lhs_second_area > 0) && (rhs_first_area > 0) != (rhs_second_area > 0);
+  }
+
+  Segment getPolygonEdge(const Polygon& polygon, size_t index)
+  {
+    if (index == polygon.points.size() - 1)
+    {
+      return Segment{polygon.points[index], polygon.points[0]};
+    }
+    return Segment{polygon.points[index], polygon.points[index + 1]};
+  }
+
+  bool areEdgeAndPolygonIntersected(const Segment& edge, const Polygon& polygon)
+  {
+    std::vector< size_t > indexes(polygon.points.size());
+    std::iota(indexes.begin(), indexes.end(), 0);
+    std::vector< Segment > edges;
+    using namespace std::placeholders;
+    std::transform(indexes.begin(), indexes.end(), std::back_inserter(edges),
+      std::bind(getPolygonEdge, std::cref(polygon), _1));
+    return std::any_of(edges.begin(), edges.end(), std::bind(areSegmentsIntersected, edge, _1));
+  }
+
+  bool isIntersected(const Polygon& lhs, const Polygon& rhs)
+  {
+    std::vector< size_t > indexes(lhs.points.size());
+    std::iota(indexes.begin(), indexes.end(), 0);
+    std::vector< Segment > edges;
+    using namespace std::placeholders;
+    std::transform(indexes.begin(), indexes.end(), std::back_inserter(edges),
+      std::bind(getPolygonEdge, std::cref(lhs), _1));
+    return std::any_of(edges.begin(), edges.end(), std::bind(areEdgeAndPolygonIntersected, _1, std::cref(rhs)));
+  }
+
+  void countIntersections(std::istream& in, std::ostream& out, const Polygons& polygons)
+  {
+    IOguard guard(out);
+    Polygon current;
+    in >> current;
+    if (!in)
+    {
+      throw std::invalid_argument("Incorrect polygon");
+    }
+    using namespace std::placeholders;
+    out << std::count_if(polygons.begin(), polygons.end(), std::bind(isIntersected, _1, current)) << '\n';
+  }
 }
 
 int main(int argc, char** argv)
@@ -365,6 +459,7 @@ int main(int argc, char** argv)
   cmds["MAX"] = calculateMaximums;
   cmds["MIN"] = calculateMinimums;
   cmds["COUNT"] = countPolygons;
+  cmds["INTERSECTIONS"] = countIntersections;
 
   std::string cmd;
   while (std::cin >> cmd)
