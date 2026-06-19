@@ -422,6 +422,41 @@ namespace tarasenko
     return std::any_of(edges.begin(), edges.end(), std::bind(areSegmentsIntersected, edge, _1));
   }
 
+  bool isPointOnPolygonEdge(const Point& point, const Polygon& polygon, size_t index)
+  {
+    return isPointOnSegment(point, getPolygonEdge(polygon, index));
+  }
+
+  bool isRayCrossingSegment(const Point& point, const Segment& edge)
+  {
+    bool is_y_between = (edge.a.y > point.y) != (edge.b.y > point.y);
+    if (!is_y_between)
+    {
+      return false;
+    }
+    double x = edge.a.x + 1.0 * (point.y - edge.a.y) * (edge.b.x - edge.a.x) / (edge.b.y - edge.a.y);
+    return x > point.x;
+  }
+
+  bool isRayCrossingPolygonEdge(const Point& point, const Polygon& polygon, size_t index)
+  {
+    return isRayCrossingSegment(point, getPolygonEdge(polygon, index));
+  }
+
+  bool isPointInPolygon(const Point& point, const Polygon& polygon)
+  {
+    std::vector< size_t > indexes(polygon.points.size());
+    std::iota(indexes.begin(), indexes.end(), 0);
+    using namespace std::placeholders;
+    if (std::any_of(indexes.begin(), indexes.end(), std::bind(isPointOnPolygonEdge, point, std::cref(polygon), _1)))
+    {
+      return true;
+    }
+    size_t crossings = std::count_if(indexes.begin(), indexes.end(),
+      std::bind(isRayCrossingPolygonEdge, point, std::cref(polygon), _1));
+    return crossings % 2 == 1;
+  }
+
   bool isIntersected(const Polygon& lhs, const Polygon& rhs)
   {
     std::vector< size_t > indexes(lhs.points.size());
@@ -430,7 +465,9 @@ namespace tarasenko
     using namespace std::placeholders;
     std::transform(indexes.begin(), indexes.end(), std::back_inserter(edges),
       std::bind(getPolygonEdge, std::cref(lhs), _1));
-    return std::any_of(edges.begin(), edges.end(), std::bind(areEdgeAndPolygonIntersected, _1, std::cref(rhs)));
+    return std::any_of(edges.begin(), edges.end(), std::bind(areEdgeAndPolygonIntersected, _1, std::cref(rhs)))
+      || isPointInPolygon(lhs.points[0], rhs)
+      || isPointInPolygon(rhs.points[0], lhs);
   }
 
   void countIntersections(std::istream& in, std::ostream& out, const Polygons& polygons)
@@ -439,6 +476,14 @@ namespace tarasenko
     Polygon current;
     in >> current;
     if (!in)
+    {
+      throw std::invalid_argument("Incorrect polygon");
+    }
+    std::string rest;
+    std::getline(in, rest);
+    std::istringstream stream(rest);
+    std::string argument;
+    if (stream >> argument)
     {
       throw std::invalid_argument("Incorrect polygon");
     }
@@ -533,19 +578,19 @@ int main(int argc, char** argv)
   cmds["INTERSECTIONS"] = countIntersections;
   cmds["RIGHTSHAPES"] = countRightShapes;
 
-  std::string cmd;
-  while (std::cin >> cmd)
+  Line line;
+  while (std::cin >> line)
   {
+    std::istringstream stream(line.data);
+    std::string cmd;
+    stream >> cmd;
     try
     {
-      cmds.at(cmd)(std::cin, std::cout, polygons);
+      cmds.at(cmd)(stream, std::cout, polygons);
     }
     catch (const std::exception&)
     {
       std::cout << "<INVALID COMMAND>\n";
-      auto toignore = std::numeric_limits< std::streamsize >::max();
-      std::cin.clear();
-      std::cin.ignore(toignore, '\n');
     }
   }
 }
