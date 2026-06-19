@@ -1,5 +1,6 @@
 #include <iostream>
 #include <istream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -164,12 +165,44 @@ namespace tarasenko
     return std::accumulate(areas.begin(), areas.end(), 0.0);
   }
 
-  void calculateAreas(std::istream&, std::ostream& out, const Polygons& polygons)
+  double getAreaIfSuits(const Polygon& polygon, int remainder)
+  {
+    if (polygon.points.size() % 2 == remainder)
+    {
+      return getPolygonArea(polygon);
+    }
+    return 0.0;
+  }
+
+  void calculateAreas(std::istream& in, std::ostream& out, const Polygons& polygons)
   {
     IOguard guard(out);
+    out << std::fixed << std::setprecision(1);
+    std::string subcommand;
+    in >> subcommand;
+    int remainder = 0;
+    if (subcommand == "MEAN")
+    {
+      std::vector< double > areas;
+      std::transform(polygons.begin(), polygons.end(), std::back_inserter(areas), getPolygonArea);
+      out << std::accumulate(areas.begin(), areas.end(), 0.0) / polygons.size() << '\n';
+      return;
+    }
+    else if (subcommand == "EVEN")
+    {
+      remainder = 0;
+    }
+    else if (subcommand == "ODD")
+    {
+      remainder = 1;
+    }
+    else
+    {
+      throw std::invalid_argument("Unknown subcommand");
+    }
     std::vector< double > areas;
-    std::transform(polygons.begin(), polygons.end(), std::back_inserter(areas), getPolygonArea);
-    out << std::fixed << std::setprecision(1) << std::accumulate(areas.begin(), areas.end(), 0.0) << '\n';
+    std::transform(polygons.begin(), polygons.end(), std::back_inserter(areas), std::bind(getAreaIfSuits, std::placeholders::_1, remainder));
+    out << std::accumulate(areas.begin(), areas.end(), 0.0) << '\n';
   }
 }
 
