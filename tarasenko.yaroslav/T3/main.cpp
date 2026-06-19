@@ -612,7 +612,7 @@ int main(int argc, char** argv)
     stream >> cmd;
     try
     {
-      cmds.at(cmd)(stream, std::cout, polygons);
+      const_cmds.at(cmd)(stream, std::cout, polygons);
     }
     catch (const std::exception&)
     {
