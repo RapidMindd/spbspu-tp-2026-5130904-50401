@@ -51,6 +51,11 @@ namespace tarasenko
     char c;
   };
 
+  struct Line
+  {
+    std::string data;
+  };
+
   std::istream& operator>>(std::istream& in, del&& expected)
   {
     std::istream::sentry s(in);
@@ -77,6 +82,13 @@ namespace tarasenko
     return in >> del{'('} >> point.x >> del{';'} >> point.y >> del{')'};
   }
 
+  Point readPoint(std::istream& in)
+  {
+    Point point;
+    in >> point;
+    return point;
+  }
+
   std::istream& operator>>(std::istream& in, Polygon& polygon)
   {
     std::istream::sentry s(in);
@@ -92,8 +104,7 @@ namespace tarasenko
       return in;
     }
     std::vector< Point > points;
-    using iit = std::istream_iterator< Point >;
-    std::copy_n(iit(in), count, std::back_inserter(points));
+    std::generate_n(std::back_inserter(points), count, std::bind(readPoint, std::ref(in)));
     if (in)
     {
       polygon.points = points;
@@ -464,6 +475,32 @@ namespace tarasenko
     IOguard guard(out);
     out << std::count_if(polygons.begin(), polygons.end(), hasRightAngle) << '\n';
   }
+
+  std::istream& operator>>(std::istream& in, Line& line)
+  {
+    std::istream::sentry s(in);
+    if (!s)
+    {
+      return in;
+    }
+    return std::getline(in, line.data);
+  }
+
+  Polygon getPolygonFromLine(const Line& line)
+  {
+    std::istringstream in(line.data);
+    Polygon polygon;
+    if (in >> polygon)
+    {
+      return polygon;
+    }
+    return Polygon{};
+  }
+
+  bool isCorrect(const Polygon& polygon)
+  {
+    return polygon.points.size() > 2;
+  }
 }
 
 int main(int argc, char** argv)
@@ -476,9 +513,13 @@ int main(int argc, char** argv)
 
   using namespace tarasenko;
   std::vector< Polygon > polygons;
-  using iit = std::istream_iterator< Polygon >;
+  std::vector< Line > lines;
   std::ifstream in(argv[1]);
-  std::copy(iit(in), iit{}, std::back_inserter(polygons));
+  using iit = std::istream_iterator< Line >;
+  std::copy(iit(in), iit{}, std::back_inserter(lines));
+  std::vector< Polygon > input_polygons;
+  std::transform(lines.begin(), lines.end(), std::back_inserter(input_polygons), getPolygonFromLine);
+  std::copy_if(input_polygons.begin(), input_polygons.end(), std::back_inserter(polygons), isCorrect);
 
   using cmd_t = std::function< void(std::istream&, std::ostream&, Polygons&) >;
   using const_cmd_t = std::function< void(std::istream&, std::ostream&, const Polygons&) >;
