@@ -295,6 +295,51 @@ namespace tarasenko
       throw std::invalid_argument("Unknown argument");
     }
   }
+
+  bool isEvenVertexes(const Polygon& polygon)
+  {
+    return polygon.points.size() % 2 == 0;
+  }
+
+  bool isOddVertexes(const Polygon& polygon)
+  {
+    return polygon.points.size() % 2 == 1;
+  }
+
+  bool isRightCountVertexes(const Polygon& polygon, size_t vertexes)
+  {
+    return polygon.points.size() == vertexes;
+  }
+
+  void countPolygons(std::istream& in, std::ostream& out, const Polygons& polygons)
+  {
+    IOguard guard(out);
+    out << std::fixed << std::setprecision(1);
+    std::string argument;
+    in >> argument;
+    if (argument == "EVEN")
+    {
+      out << std::count_if(polygons.begin(), polygons.end(), isEvenVertexes) << '\n';
+    }
+    else if (argument == "ODD")
+    {
+      out << std::count_if(polygons.begin(), polygons.end(), isOddVertexes) << '\n';
+    }
+    else
+    {
+      std::istringstream stream(argument);
+      size_t vertexes = 0;
+      if (stream >> vertexes && stream.eof() && vertexes > 2)
+      {
+        using namespace std::placeholders;
+        out << std::count_if(polygons.begin(), polygons.end(), std::bind(isRightCountVertexes, _1, vertexes)) << '\n';
+      }
+      else
+      {
+        throw std::invalid_argument("Unknown argument");
+      }
+    }
+  }
 }
 
 int main(int argc, char** argv)
@@ -319,6 +364,7 @@ int main(int argc, char** argv)
   cmds["AREA"] = calculateAreas;
   cmds["MAX"] = calculateMaximums;
   cmds["MIN"] = calculateMinimums;
+  cmds["COUNT"] = countPolygons;
 
   std::string cmd;
   while (std::cin >> cmd)
