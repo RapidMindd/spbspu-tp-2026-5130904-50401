@@ -347,9 +347,9 @@ namespace tarasenko
     Point b;
   };
 
-  long long getOrientedArea(const Point& a, const Point& b, const Point& c)
+  long long getOrientedTriangleArea(const Point& a, const Point& b, const Point& c)
   {
-    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+    return a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y);
   }
 
   bool isCoordinateBetween(int left, int value, int right)
@@ -359,7 +359,7 @@ namespace tarasenko
 
   bool isPointOnSegment(const Point& point, const Segment& segment)
   {
-    bool ans = getOrientedArea(segment.a, segment.b, point) == 0;
+    bool ans = getOrientedTriangleArea(segment.a, segment.b, point) == 0;
     ans = ans && isCoordinateBetween(segment.a.x, point.x, segment.b.x);
     ans = ans && isCoordinateBetween(segment.a.y, point.y, segment.b.y);
     return ans;
@@ -367,10 +367,10 @@ namespace tarasenko
 
   bool areSegmentsIntersected(const Segment& lhs, const Segment& rhs)
   {
-    long long lhs_first_area = getOrientedArea(lhs.a, lhs.b, rhs.a);
-    long long lhs_second_area = getOrientedArea(lhs.a, lhs.b, rhs.b);
-    long long rhs_first_area = getOrientedArea(rhs.a, rhs.b, lhs.a);
-    long long rhs_second_area = getOrientedArea(rhs.a, rhs.b, lhs.b);
+    long long lhs_first_area = getOrientedTriangleArea(lhs.a, lhs.b, rhs.a);
+    long long lhs_second_area = getOrientedTriangleArea(lhs.a, lhs.b, rhs.b);
+    long long rhs_first_area = getOrientedTriangleArea(rhs.a, rhs.b, lhs.a);
+    long long rhs_second_area = getOrientedTriangleArea(rhs.a, rhs.b, lhs.b);
 
     if (lhs_first_area == 0 && isPointOnSegment(rhs.a, lhs))
     {
@@ -434,6 +434,36 @@ namespace tarasenko
     using namespace std::placeholders;
     out << std::count_if(polygons.begin(), polygons.end(), std::bind(isIntersected, _1, current)) << '\n';
   }
+
+  bool isRightAngle(const Point& prev, const Point& target, const Point& next)
+  {
+    int ba_x = prev.x - target.x;
+    int ba_y = prev.y - target.y;
+    int bc_x = next.x - target.x;
+    int bc_y = next.y - target.y;
+    return ba_x * bc_x + ba_y * bc_y == 0;
+  }
+
+  bool isRightAngleInPolygon(const Polygon& polygon, size_t index)
+  {
+    size_t prev = index == 0 ? polygon.points.size() - 1 : index - 1;
+    size_t next = index == polygon.points.size() - 1 ? 0 : index + 1;
+    return isRightAngle(polygon.points[prev], polygon.points[index], polygon.points[next]);
+  }
+
+  bool hasRightAngle(const Polygon& polygon)
+  {
+    std::vector< size_t > indexes(polygon.points.size());
+    std::iota(indexes.begin(), indexes.end(), 0);
+    using namespace std::placeholders;
+    return std::any_of(indexes.begin(), indexes.end(), std::bind(isRightAngleInPolygon, std::cref(polygon), _1));
+  }
+
+  void countRightShapes(std::istream&, std::ostream& out, const Polygons& polygons)
+  {
+    IOguard guard(out);
+    out << std::count_if(polygons.begin(), polygons.end(), hasRightAngle) << '\n';
+  }
 }
 
 int main(int argc, char** argv)
@@ -460,6 +490,7 @@ int main(int argc, char** argv)
   cmds["MIN"] = calculateMinimums;
   cmds["COUNT"] = countPolygons;
   cmds["INTERSECTIONS"] = countIntersections;
+  cmds["RIGHTSHAPES"] = countRightShapes;
 
   std::string cmd;
   while (std::cin >> cmd)
