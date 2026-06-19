@@ -177,7 +177,7 @@ namespace tarasenko
     return std::accumulate(areas.begin(), areas.end(), 0.0);
   }
 
-  double getAreaIfRightParity(const Polygon& polygon, int remainder)
+  double getAreaIfRightParity(const Polygon& polygon, size_t remainder)
   {
     if (polygon.points.size() % 2 == remainder)
     {
