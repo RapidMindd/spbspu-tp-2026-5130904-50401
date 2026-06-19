@@ -234,6 +234,67 @@ namespace tarasenko
       std::back_inserter(areas), std::bind(getAreaIfRightParity, _1, remainder));
     out << std::accumulate(areas.begin(), areas.end(), 0.0) << '\n';
   }
+
+  size_t getVertexes(const Polygon& polygon)
+  {
+    return polygon.points.size();
+  }
+
+  void calculateMaximums(std::istream& in, std::ostream& out, const Polygons& polygons)
+  {
+    IOguard guard(out);
+    out << std::fixed << std::setprecision(1);
+    std::string argument;
+    in >> argument;
+    if (polygons.size() == 0)
+    {
+      throw std::logic_error("Not enough polygons");
+    }
+    if (argument == "AREA")
+    {
+      std::vector< double > areas;
+      std::transform(polygons.begin(), polygons.end(), std::back_inserter(areas), getPolygonArea);
+      out << *std::max_element(areas.begin(), areas.end()) << '\n';
+    }
+    else if (argument == "VERTEXES")
+    {
+      std::vector< size_t > vertexes;
+      std::transform(polygons.begin(), polygons.end(), std::back_inserter(vertexes), getVertexes);
+      out << *std::max_element(vertexes.begin(), vertexes.end()) << '\n';
+    }
+    else
+    {
+      throw std::invalid_argument("Unknown argument");
+    }
+  }
+
+  void calculateMinimums(std::istream& in, std::ostream& out, const Polygons& polygons)
+  {
+    IOguard guard(out);
+    out << std::fixed << std::setprecision(1);
+    std::string argument;
+    in >> argument;
+    if (polygons.size() == 0)
+    {
+      throw std::logic_error("Not enough polygons");
+    }
+    if (argument == "AREA")
+    {
+      std::vector< double > areas;
+      std::transform(polygons.begin(), polygons.end(), std::back_inserter(areas), getPolygonArea);
+      out << *std::min_element(areas.begin(), areas.end()) << '\n';
+    }
+    else if (argument == "VERTEXES")
+    {
+      std::vector< size_t > vertexes;
+      std::transform(polygons.begin(), polygons.end(), std::back_inserter(vertexes), getVertexes);
+      out << *std::min_element(vertexes.begin(), vertexes.end()) << '\n';
+    }
+    else
+    {
+      throw std::invalid_argument("Unknown argument");
+    }
+  }
 }
 
 int main(int argc, char** argv)
@@ -256,6 +317,8 @@ int main(int argc, char** argv)
 
   std::unordered_map< std::string, const_cmd_t > const_cmds;
   cmds["AREA"] = calculateAreas;
+  cmds["MAX"] = calculateMaximums;
+  cmds["MIN"] = calculateMinimums;
 
   std::string cmd;
   while (std::cin >> cmd)
