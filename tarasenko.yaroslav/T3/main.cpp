@@ -537,7 +537,11 @@ namespace tarasenko
     Polygon polygon;
     if (in >> polygon)
     {
-      return polygon;
+      in >> std::ws;
+      if (in.eof())
+      {
+        return polygon;
+      }
     }
     return Polygon{};
   }
